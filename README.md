@@ -11,7 +11,13 @@ Study Buddy is a small web-based AI voice assistant focused on study help: expla
 
 **Requirements**
 - Node.js 18+ and npm
-- An OpenAI API key set as the environment variable `OPENAI_API_KEY` (not checked into source)
+
+This project can run in two modes:
+
+- Cloud mode (uses OpenAI): set `OPENAI_API_KEY`.
+- Offline/on-device mode (no OpenAI costs): install a local model runner and set `LOCAL_MODEL_CMD`.
+
+If you cannot afford OpenAI API calls, use offline mode as described below.
 
 **Quick start**
 1. Install dependencies:
@@ -38,6 +44,33 @@ npm start
 - Add authentication to restrict access.
 - Persist conversation history per user.
 - Add language selection and improved prompt engineering for study-specific modes (quiz, summarize, explain).
+
+**Offline / On-device setup (no API cost)**
+
+1) Install a local model runner. Options:
+
+- gpt4all (https://gpt4all.io/) — provides lightweight local models and a CLI.
+- ollama (https://ollama.com/) — runs LLMs locally with a simple CLI (supports Windows via WSL/installer).
+- llama.cpp / ggml-based builds — many frontends expose a CLI.
+
+2) Configure the `LOCAL_MODEL_CMD` env var with a command template that includes `{prompt}`. Example PowerShell commands:
+
+```powershell
+# Example for gpt4all CLI (adjust flags/model path as needed)
+$env:LOCAL_MODEL_CMD = 'gpt4all --model models/gpt4all-lora.bin --prompt "{prompt}"'
+npm start
+
+# Example for ollama (runs a model named llama2 locally)
+$env:LOCAL_MODEL_CMD = 'ollama run llama2 --prompt "{prompt}"'
+npm start
+```
+
+3) The server will replace `{prompt}` with the conversation context and call the command. If the command fails or is not configured, the server will fall back to a simple built-in offline responder (limited answers).
+
+Notes:
+- Local models require disk space and sometimes a GPU for reasonable performance. Small CPU models work but may be slow.
+- `LOCAL_MODEL_CMD` uses the shell: ensure commands are safe and properly quoted for your shell.
+
 
 ***
 
