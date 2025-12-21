@@ -75,11 +75,32 @@ document.addEventListener('DOMContentLoaded', () => {
     replyArea.textContent = 'Thinking...';
     try {
       const payload = { message, sessionId: window.studyBuddySessionId || null };
-      const res = await fetch('/api/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      // helper to attempt POST and return response
+      async function tryPost(url) {
+        return fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
+
+      // Primary try: relative path (works when served by the Node server)
+      let res = null;
+      try {
+        res = await tryPost('/api/ask');
+        // If server returns 405 (e.g., static-only server), try localhost fallback
+        if (res.status === 405) {
+          const fallbackUrl = 'http://localhost:3000/api/ask';
+          res = await tryPost(fallbackUrl);
+        }
+      } catch (e) {
+        // network or CORS error — try localhost fallback
+        try {
+          res = await tryPost('http://localhost:3000/api/ask');
+        } catch (e2) {
+          throw new Error('Network error and localhost fallback failed. Is the Node server running?');
+        }
+      }
 
       // Safely handle responses that are not valid JSON (e.g., HTML error pages or empty body)
       let data = null;
