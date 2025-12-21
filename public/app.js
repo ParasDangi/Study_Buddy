@@ -80,7 +80,26 @@ document.addEventListener('DOMContentLoaded', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      const data = await res.json();
+
+      // Safely handle responses that are not valid JSON (e.g., HTML error pages or empty body)
+      let data = null;
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Server error ${res.status}: ${text || res.statusText}`);
+      }
+      if (contentType.includes('application/json')) {
+        try {
+          data = await res.json();
+        } catch (e) {
+          const txt = await res.text().catch(() => '');
+          throw new Error('Invalid JSON response from server: ' + (txt || e.message));
+        }
+      } else {
+        // If server returned plain text, treat it as message
+        const txt = await res.text().catch(() => '');
+        data = { reply: txt };
+      }
       if (data.sessionId) {
         window.studyBuddySessionId = data.sessionId;
         try { localStorage.setItem('studyBuddy_sessionId', data.sessionId); } catch (e) {}
