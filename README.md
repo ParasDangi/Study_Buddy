@@ -96,5 +96,3 @@ If `GEMINI_*` variables are present the server will prefer them over `OPENAI_API
 
 
 ***
-
-If you want, I can run the app locally (if Node is available), add server-side persistence (SQLite), or implement authentication. Which would you like next?
