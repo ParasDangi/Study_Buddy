@@ -71,6 +71,29 @@ Notes:
 - Local models require disk space and sometimes a GPU for reasonable performance. Small CPU models work but may be slow.
 - `LOCAL_MODEL_CMD` uses the shell: ensure commands are safe and properly quoted for your shell.
 
+**Using Google Gemini / Gemini API**
+
+You can use a Gemini-style API instead of OpenAI. Two modes are supported:
+
+- `GEMINI_API_URL` + `GEMINI_API_KEY`: call a custom Gemini-compatible endpoint (server will POST JSON with `{ prompt }` and send `Authorization: Bearer <key>`).
+- `GEMINI_API_KEY` + `GEMINI_MODEL`: call the Google Generative Text API using your API key and model name. Example model: `models/text-bison-001`.
+
+Examples (PowerShell):
+
+```powershell
+# Use Google Generative API (Gemini) with model name
+$env:GEMINI_API_KEY = "YOUR_GOOGLE_API_KEY"
+$env:GEMINI_MODEL = "text-bison@001"  # or models/text-bison-001 depending on your account
+npm start
+
+# Or point to a custom Gemini-compatible endpoint
+$env:GEMINI_API_KEY = "YOUR_KEY"
+$env:GEMINI_API_URL = "https://my-gemini-proxy.example.com/generate"
+npm start
+```
+
+If `GEMINI_*` variables are present the server will prefer them over `OPENAI_API_KEY` or `LOCAL_MODEL_CMD`.
+
 
 ***
 

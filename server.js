@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -80,17 +81,47 @@ app.post('/api/ask', async (req, res) => {
 
     let reply = 'Sorry, no response.';
 
-    if (process.env.OPENAI_API_KEY) {
-      // Use OpenAI if key is present
-      const { Configuration, OpenAIApi } = require('openai');
-      const configuration = new Configuration({ apiKey: process.env.OPENAI_API_KEY });
-      const openai = new OpenAIApi(configuration);
-      const completion = await openai.createChatCompletion({
-        model: 'gpt-3.5-turbo',
-        messages: messages,
-        max_tokens: 600
-      });
-      reply = completion.data.choices && completion.data.choices[0].message ? completion.data.choices[0].message.content : reply;
+    // Helper: call Gemini / custom generative endpoint
+    async function callGemini(promptText) {
+      // If a custom URL is provided, call it with Bearer auth using GEMINI_API_KEY
+      if (process.env.GEMINI_API_URL) {
+        const url = process.env.GEMINI_API_URL;
+        const body = { prompt: promptText };
+        const headers = { 'Content-Type': 'application/json' };
+        if (process.env.GEMINI_API_KEY) headers['Authorization'] = `Bearer ${process.env.GEMINI_API_KEY}`;
+        const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+        const txt = await resp.text();
+        try { return JSON.parse(txt); } catch { return txt; }
+      }
+
+      // Otherwise, support Google Generative API using GEMINI_API_KEY + GEMINI_MODEL
+      if (process.env.GEMINI_API_KEY && process.env.GEMINI_MODEL) {
+        const model = process.env.GEMINI_MODEL;
+        const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateText?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`;
+        const body = { prompt: { text: promptText }, maxOutputTokens: 512 };
+        const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await resp.json();
+        return j;
+      }
+
+      throw new Error('No Gemini configuration available');
+    }
+
+    if (process.env.GEMINI_API_KEY || process.env.GEMINI_API_URL) {
+      try {
+        const out = await callGemini(prompt);
+        // Try several possible shapes for the response
+        if (typeof out === 'string') reply = out;
+        else if (out?.candidates && out.candidates[0] && out.candidates[0].output) reply = out.candidates[0].output;
+        else if (out?.candidates && out.candidates[0] && out.candidates[0].content) reply = out.candidates[0].content;
+        else if (out?.candidates && out.candidates[0] && out.candidates[0].text) reply = out.candidates[0].text;
+        else if (out?.output && out.output[0] && out.output[0].content) reply = out.output[0].content;
+        else if (out?.result) reply = typeof out.result === 'string' ? out.result : JSON.stringify(out.result);
+        else reply = JSON.stringify(out).slice(0, 2000);
+      } catch (e) {
+        console.error('Gemini/local model error', e.message || e);
+        reply = 'Gemini/local model failed: ' + (e.message || 'unknown error');
+      }
     } else if (process.env.LOCAL_MODEL_CMD) {
       // Try to call a user-configured local model command
       try {
